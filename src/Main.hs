@@ -1,26 +1,43 @@
-import Data.List (subsequences)
-import Data.Char (toLower)
+module Rose where
 
--- Function to check if a character is a vowel
-isVowel :: Char -> Bool
-isVowel c = toLower c `elem` "aeiou"
+data Rose a = Node a (Forest a)
+    deriving Show
 
--- Function to strip vowels and return the remaining consonants
-stripVowels :: String -> [Char]
-stripVowels = filter (not . isVowel)
+data Forest a = Empty | Cons (Rose a) (Forest a)
+    deriving Show
 
--- Function to calculate the hash strength
-hashStrength :: [Char] -> Int
-hashStrength chars = length $ filter (not . null) $ subsequences chars
+data RoseAlt a = NodeAlt a [RoseAlt a]
 
--- Main function to process the input string
-processString :: String -> Int
-processString input = hashStrength $ stripVowels input
+size :: Rose a -> Int
+size(Node x f) = 1 + sizeF f
+sizeF :: Forest a -> Int
+sizeF Empty = 0
+sizeF (Cons r f) = size r + sizeF f
 
--- Example usage
-main :: IO ()
-main = do
-    let input1 = "baa"
-    let input2 = "abc"
-    print $ processString input1 -- Output: 1
-    print $ processString input2 -- Output: 3
+height :: Rose a -> Int
+height (Node x f) = 1 + heightF f
+heightF :: Forest a -> Int
+heightF Empty = 0
+heightF (Cons r f) = max (height r) (heightF f)
+
+data Expr = Num Int
+          | Add Expr Expr
+          | Mul Expr Expr
+          | Var String deriving Show
+
+constantFolder :: Expr -> Expr
+constantFolder(Num n) = Num n
+constantFolder(Var x) = Var x
+constantFolder(Add e1 e2) =
+    let e1' = constantFolder e1
+        e2' = constantFolder e2
+    in
+        case (e1',e2') of
+            (Num n, Num m) -> Num(n + m)
+constantFolder(Mul e1 e2) = 
+    let e1' = constantFolder e1
+        e2' = constantFolder e2
+    in
+        case (e1', e2') of
+            (Num n, Num m) -> Num(n * m)
+            _ -> Mul e1' e2'
