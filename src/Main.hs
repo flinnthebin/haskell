@@ -1,43 +1,76 @@
-module Rose where
+import Data.Char
 
-data Rose a = Node a (Forest a)
-    deriving Show
+-- ok, this is a comment, and I'm going to type some Haskell
 
-data Forest a = Empty | Cons (Rose a) (Forest a)
-    deriving Show
+-- BTW, you can load this file in the "ghci" interpreter by typing
+-- ":l lexer" or ":l lexer.hs", and reload it with ":r".
 
-data RoseAlt a = NodeAlt a [RoseAlt a]
+-- GHCi can be installed as part of the "GHC" Haskell toolchain. It should
+-- be possible to install GHC on your hardware. It's also available on the
+-- CSE machines, which should be sufficient for experiments prior to
+-- assignment 1.
 
-size :: Rose a -> Int
-size(Node x f) = 1 + sizeF f
-sizeF :: Forest a -> Int
-sizeF Empty = 0
-sizeF (Cons r f) = size r + sizeF f
+-- the goal is to lex a string like this
+example_string :: String
+example_string = "int f (int x) {\n return 1;\n }"
 
-height :: Rose a -> Int
-height (Node x f) = 1 + heightF f
-heightF :: Forest a -> Int
-heightF Empty = 0
-heightF (Cons r f) = max (height r) (heightF f)
+data Token
+  = Ident String
+  | Lit Int
+  | LParen
+  | RParen
+  | LBrace
+  | RBrace
+  | Semi
+  | GreaterThan
+  | LessThan
+  | Equals
+  | Minus
+  | Plus
+  | Return
+  deriving (Show)
 
-data Expr = Num Int
-          | Add Expr Expr
-          | Mul Expr Expr
-          | Var String deriving Show
+data My_List a = Nil | Cons a (My_List a)
+  deriving (Show)
 
-constantFolder :: Expr -> Expr
-constantFolder(Num n) = Num n
-constantFolder(Var x) = Var x
-constantFolder(Add e1 e2) =
-    let e1' = constantFolder e1
-        e2' = constantFolder e2
-    in
-        case (e1',e2') of
-            (Num n, Num m) -> Num(n + m)
-constantFolder(Mul e1 e2) = 
-    let e1' = constantFolder e1
-        e2' = constantFolder e2
-    in
-        case (e1', e2') of
-            (Num n, Num m) -> Num(n * m)
-            _ -> Mul e1' e2'
+add_my_list :: My_List Int -> Int
+add_my_list xs = case xs of
+  Nil -> 0
+  Cons x xs -> x + add_my_list xs
+
+comp :: (b -> c) -> (a -> b) -> a -> c
+comp f g x = f (g x)
+
+-- almost working. exercise to the reader: treat reserved word tokens like
+-- "return", "if", "else" specially
+lexer :: String -> [Token]
+lexer ('{' : cs) = LBrace : lexer cs
+lexer ('}' : cs) = RBrace : lexer cs
+lexer ('(' : cs) = LParen : lexer cs
+lexer (')' : cs) = RParen : lexer cs
+lexer (';' : cs) = Semi : lexer cs
+lexer ('>' : cs) = GreaterThan : lexer cs
+lexer ('<' : cs) = LessThan : lexer cs
+lexer ('=' : cs) = Equals : lexer cs
+lexer ('-' : cs) = Minus : lexer cs
+lexer ('+' : cs) = Plus : lexer cs
+lexer [] = []
+lexer (c : cs) =
+  if isSpace c
+    then lexer cs
+    else
+      if isDigit c
+        then
+          let (int_string, rest) = break (comp not isDigit) (c : cs)
+           in (Lit (read int_string) : lexer rest)
+        else
+          if isAlpha c
+            then
+              let (ident_string, rest) = break (\c -> not (isAlpha c || isDigit c)) (c : cs)
+               in (Ident ident_string : lexer rest)
+            else error ("couldn't lex this: " ++ show (c : cs))
+
+-- this might help explain the "let" syntax a little
+example_let = let x = 1 in x + x
+
+example_let2 = (\x -> x + x) 1
